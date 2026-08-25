@@ -387,6 +387,7 @@ const AD_BREAK_FREQUENCY = 1;     // insert a break after every N videos (1 = af
 
   .status-msg{
     position:absolute; inset:0; z-index:4;
+    background: var(--bg);
     display:none; align-items:center; justify-content:center; flex-direction:column;
     color: var(--text-dim); font-family:'IBM Plex Mono', monospace; text-align:center;
   }
@@ -812,6 +813,7 @@ let mainPlayer = null;
 let mainPlayerReady = false;
 let loadedAdKey = null;
 let currentAdObjectUrl = null;
+let firstPlayCallback = null; // fired the moment the YT player actually starts playing
 
 const railEl = document.getElementById('rail');
 const clockEl = document.getElementById('clock');
@@ -893,8 +895,11 @@ async function selectChannel(idx, opts){
   await tuneChannel(idx);
 }
 
+let tuneGeneration = 0;
+
 async function tuneChannel(idx){
   const ch = CHANNELS[idx];
+  const myGen = ++tuneGeneration;
   if (!ch.videos || ch.videos.length === 0){
     currentSchedule = null;
     showStatus('NO SIGNAL', 'This channel has no videos yet — add some in the code.', 0);
@@ -903,14 +908,29 @@ async function tuneChannel(idx){
   showStatus('TUNING IN…', ch.name, 0);
   whenYT(async () => {
     const durationsById = await ensureDurations(ch, (done, totalCount) => {
+      if (myGen !== tuneGeneration) return;
       showStatus('TUNING IN…', ch.name + ' — analyzing ' + done + '/' + totalCount, (done / totalCount) * 100);
     });
-    if (idx !== currentChannelIndex) return; // user switched away while loading
+    if (idx !== currentChannelIndex || myGen !== tuneGeneration) return; // user switched away while loading
     currentSchedule = buildSchedule(ch, durationsById, adClips);
-    hideStatus();
     const np = getNowPlaying(currentSchedule);
-    showItem(np);
     updateEPG(np);
+
+    // Keep the "tuning in" overlay up through the actual video/ad load —
+    // hiding it only once playback has genuinely started avoids a gap
+    // where the raw player is visible (black frame / captions only)
+    // before pixels actually show up.
+    showStatus('TUNING IN…', ch.name + ' — loading video…', 100);
+    let settled = false;
+    const reveal = () => {
+      if (settled || myGen !== tuneGeneration) return;
+      settled = true;
+      hideStatus();
+    };
+    showItem(np, reveal);
+    // Safety net: never leave the overlay stuck up if a playback event
+    // doesn't fire for some reason (slow network, blocked embed, etc.)
+    setTimeout(reveal, 8000);
   });
 }
 
@@ -921,10 +941,11 @@ function itemKey(item){
     : ('video:' + item.video.id);
 }
 
-function loadIntoYouTube(np){
+function loadIntoYouTube(np, onPlaying){
   whenYT(() => {
     const vid = np.item.video.id;
     if (!mainPlayer){
+      if (onPlaying) firstPlayCallback = onPlaying;
       mainPlayer = new YT.Player('main-player', {
         height: '100%', width: '100%', videoId: vid,
         playerVars: { autoplay: 1, controls: 1, rel: 0, modestbranding: 1 },
@@ -934,29 +955,43 @@ function loadIntoYouTube(np){
             e.target.seekTo(np.offset, true);
             e.target.playVideo();
           },
+          onStateChange: (e) => {
+            if (e.data === 1 /* YT.PlayerState.PLAYING */ && firstPlayCallback){
+              const cb = firstPlayCallback;
+              firstPlayCallback = null;
+              cb();
+            }
+          },
           onError: () => { /* bad video id — schedule will move on next tick */ }
         }
       });
       mainPlayer._loadedId = vid;
     } else if (mainPlayer._loadedId !== vid){
+      if (onPlaying) firstPlayCallback = onPlaying;
       mainPlayer.loadVideoById(vid, np.offset);
       mainPlayer._loadedId = vid;
     } else if (mainPlayerReady && typeof mainPlayer.getPlayerState === 'function'){
       const state = mainPlayer.getPlayerState();
       if (state !== 1 /* YT.PlayerState.PLAYING */){
+        if (onPlaying) firstPlayCallback = onPlaying;
         mainPlayer.seekTo(np.offset, true);
         mainPlayer.playVideo();
+      } else if (onPlaying){
+        // Already playing this exact video — nothing to wait for.
+        onPlaying();
       }
+    } else if (onPlaying){
+      onPlaying();
     }
   });
 }
 
-function showItem(np){
+function showItem(np, onPlaying){
   if (np.item.type === 'video'){
     adPlayerEl.pause();
     adPlayerEl.style.display = 'none';
     mainPlayerEl.style.display = 'block';
-    loadIntoYouTube(np);
+    loadIntoYouTube(np, onPlaying);
   } else {
     mainPlayerEl.style.display = 'none';
     try { if (mainPlayer && mainPlayer.pauseVideo) mainPlayer.pauseVideo(); } catch(e){}
@@ -968,9 +1003,13 @@ function showItem(np){
       adPlayerEl.src = currentAdObjectUrl;
       loadedAdKey = key;
       adPlayerEl.currentTime = 0;
+      if (onPlaying) adPlayerEl.addEventListener('playing', onPlaying, { once: true });
       adPlayerEl.play().catch(() => {});
     } else if (Math.abs(adPlayerEl.currentTime - np.offset) > 2){
       adPlayerEl.currentTime = np.offset;
+      if (onPlaying) onPlaying();
+    } else if (onPlaying){
+      onPlaying();
     }
     if (adPlayerEl.paused) adPlayerEl.play().catch(() => {});
   }
