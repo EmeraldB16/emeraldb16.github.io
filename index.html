@@ -506,7 +506,7 @@ const AD_BREAK_FREQUENCY = 1;     // insert a break after every N videos (1 = af
   </div>
 </div>
 
-<div id="probe-player" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; left:-9999px;"></div>
+<div id="probe-pool" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; left:-9999px;"></div>
 <input type="file" id="ads-input" webkitdirectory directory multiple accept="video/mp4" style="display:none;">
 
 <script>
@@ -620,15 +620,15 @@ function setCachedDuration(id, seconds){
   try { localStorage.setItem('signal_dur_' + id, String(seconds)); } catch(e){}
 }
 
-let probePlayerObj = null;
-function probeDuration(videoId){
+// Probes a single video's duration using a dedicated hidden player slot.
+// Resolves immediately from cache when possible; otherwise spins up a
+// throwaway YT.Player just long enough to read getDuration().
+function probeDurationInSlot(videoId, slotId){
   return new Promise((resolve) => {
     const cached = getCachedDuration(videoId);
     if (cached) { resolve(cached); return; }
-    try {
-      if (probePlayerObj) { probePlayerObj.destroy(); probePlayerObj = null; }
-    } catch(e){}
-    probePlayerObj = new YT.Player('probe-player', {
+    let player = null;
+    player = new YT.Player(slotId, {
       height: '1', width: '1', videoId: videoId,
       playerVars: { autoplay: 0, controls: 0 },
       events: {
@@ -641,20 +641,53 @@ function probeDuration(videoId){
         },
         onError: () => {
           setCachedDuration(videoId, 180);
-          try { probePlayerObj.destroy(); } catch(err){}
+          try { player.destroy(); } catch(err){}
           resolve(180);
         }
       }
     });
   });
 }
+
+// How many videos to probe at once. Higher = faster "analyzing" step,
+// but too high can start to strain slower connections/devices.
+const PROBE_CONCURRENCY = 6;
+
 async function ensureDurations(channel, onProgress){
   const map = {};
-  for (let i = 0; i < channel.videos.length; i++){
-    const v = channel.videos[i];
-    map[v.id] = await probeDuration(v.id);
-    if (onProgress) onProgress(i + 1, channel.videos.length);
+  const videos = channel.videos;
+  const total = videos.length;
+  let nextIndex = 0;
+  let doneCount = 0;
+
+  const poolContainer = document.getElementById('probe-pool');
+  const slotIds = [];
+  const slotCount = Math.max(1, Math.min(PROBE_CONCURRENCY, total));
+  const poolTag = Date.now();
+  for (let s = 0; s < slotCount; s++){
+    const div = document.createElement('div');
+    div.id = 'probe-slot-' + poolTag + '-' + s;
+    poolContainer.appendChild(div);
+    slotIds.push(div.id);
   }
+
+  async function worker(slotId){
+    while (nextIndex < videos.length){
+      const i = nextIndex++;
+      const v = videos[i];
+      map[v.id] = await probeDurationInSlot(v.id, slotId);
+      doneCount++;
+      if (onProgress) onProgress(doneCount, total);
+    }
+  }
+
+  await Promise.all(slotIds.map(worker));
+
+  slotIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  });
+
   return map;
 }
 
