@@ -433,48 +433,92 @@ const AD_BREAK_FREQUENCY = 1;     // insert a break after every N videos (1 = af
   .status-msg.burst #status-sub,
   .status-msg.burst .progress-mini{ opacity:0; }
 
-  /* ---------- SCHEDULE MODAL ---------- */
+  /* ---------- SCHEDULE MODAL (TV GUIDE) ---------- */
   .sched-overlay{
     position:fixed; inset:0; z-index:50; display:none;
-    background: rgba(0,0,0,0.7);
+    background: rgba(0,0,0,0.75);
     align-items:center; justify-content:center;
   }
   .sched-overlay.show{ display:flex; }
   .sched-modal{
-    width:min(560px, 92vw); max-height:80vh; display:flex; flex-direction:column;
-    background: var(--panel); border:1px solid var(--border); border-radius:8px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    width:min(920px, 95vw); max-height:82vh; display:flex; flex-direction:column;
+    background: var(--panel); border:1px solid var(--border); border-radius:10px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+    overflow:hidden;
   }
   .sched-head{
     display:flex; align-items:center; justify-content:space-between;
-    padding: 16px 20px; border-bottom:1px solid var(--border);
+    padding: 16px 20px; border-bottom:1px solid var(--border); flex-shrink:0;
   }
-  .sched-title{ font-family:'Archivo Black', sans-serif; font-size:16px; color:var(--text); letter-spacing:0.04em; }
-  .sched-sub{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--text-dim); margin-top:2px; text-transform:uppercase; letter-spacing:0.08em; }
+  .sched-title{
+    font-family:'Archivo Black', sans-serif; font-size:16px; color:var(--text);
+    letter-spacing:0.04em; display:flex; align-items:center; gap:8px;
+  }
+  .sched-title .dot{ width:8px; height:8px; border-radius:50%; background:var(--amber); box-shadow:0 0 6px var(--amber); }
+  .sched-sub{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--text-dim); margin-top:3px; text-transform:uppercase; letter-spacing:0.08em; }
   .sched-close{
     background: var(--panel-alt); border:1px solid var(--border); color: var(--text-dim);
-    width:30px; height:30px; border-radius:4px; cursor:pointer; font-size:14px;
+    width:30px; height:30px; border-radius:4px; cursor:pointer; font-size:14px; flex-shrink:0;
   }
   .sched-close:hover{ color: var(--text); border-color: var(--amber); }
-  .sched-list{ overflow-y:auto; padding: 8px 0; }
-  .sched-row{
-    display:flex; align-items:center; gap:14px;
-    padding: 10px 20px; border-bottom:1px solid rgba(255,255,255,0.04);
+
+  .sched-jump{ display:flex; gap:6px; padding: 10px 20px; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .sched-jump-btn{
+    background: var(--panel-alt); border:1px solid var(--border); color:var(--text-dim);
+    font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.05em;
+    padding:5px 10px; border-radius:4px; cursor:pointer; white-space:nowrap;
   }
-  .sched-row.now{ background: rgba(255,176,0,0.08); }
-  .sched-row.ad{ opacity:0.6; }
-  .sched-time{
-    font-family:'IBM Plex Mono', monospace; font-size:12px; color: var(--text-dim);
-    width:72px; flex-shrink:0;
+  .sched-jump-btn:hover{ color:var(--text); border-color:var(--amber); }
+
+  .guide-body{ overflow:auto; flex:1; position:relative; background: var(--bg); }
+  .guide-head-row{ display:flex; position:sticky; top:0; z-index:3; background:var(--panel); }
+  .guide-corner{
+    position:sticky; left:0; z-index:4; width:150px; flex-shrink:0;
+    background:var(--panel); border-right:1px solid var(--border); border-bottom:1px solid var(--border);
   }
-  .sched-row.now .sched-time{ color: var(--amber); font-weight:600; }
-  .sched-info{ min-width:0; flex:1; }
-  .sched-item-title{ font-size:14px; color: var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .sched-item-dur{ font-family:'IBM Plex Mono', monospace; font-size:10px; color: var(--text-dim); margin-top:2px; text-transform:uppercase; letter-spacing:0.06em; }
-  .sched-now-badge{
-    font-family:'IBM Plex Mono', monospace; font-size:9px; letter-spacing:0.08em;
-    color:#000; background: var(--amber); padding:2px 6px; border-radius:3px; flex-shrink:0;
+  .guide-timeline{ position:relative; height:34px; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .guide-tick{
+    position:absolute; top:0; bottom:0; border-left:1px solid var(--border);
+    padding-left:6px; padding-top:9px; font-family:'IBM Plex Mono', monospace;
+    font-size:10px; color:var(--text-dim); white-space:nowrap;
   }
+  .guide-row{ display:flex; border-bottom:1px solid rgba(255,255,255,0.05); }
+  .guide-row-label{
+    position:sticky; left:0; z-index:2; width:150px; flex-shrink:0;
+    background:var(--panel); border-right:1px solid var(--border);
+    padding:0 12px; display:flex; align-items:center; gap:9px; cursor:pointer;
+  }
+  .guide-row-label:hover{ background: var(--panel-alt); }
+  .guide-row-label.active{ background: rgba(255,176,0,0.10); }
+  .guide-ch-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .guide-ch-meta .name{ font-size:12px; color:var(--text); font-weight:600; line-height:1.25; }
+  .guide-ch-meta .num{ font-family:'IBM Plex Mono', monospace; font-size:9px; color:var(--text-dim); letter-spacing:0.05em; }
+  .guide-track{ position:relative; height:58px; flex-shrink:0; }
+  .guide-block{
+    position:absolute; top:7px; bottom:7px;
+    background: var(--panel-alt); border:1px solid var(--border); border-radius:5px;
+    padding:6px 9px; overflow:hidden; cursor:pointer; transition: background 0.15s, border-color 0.15s;
+  }
+  .guide-block:hover{ background:#262b31; border-color: var(--amber); }
+  .guide-block.now{ background: rgba(255,176,0,0.14); border-color: var(--amber); }
+  .guide-block.ad{
+    background: repeating-linear-gradient(45deg, rgba(255,255,255,0.025), rgba(255,255,255,0.025) 6px, transparent 6px, transparent 12px);
+    background-color: var(--panel-alt);
+  }
+  .guide-block-title{ font-size:11px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.3; }
+  .guide-block-time{ font-family:'IBM Plex Mono', monospace; font-size:9px; color:var(--text-dim); margin-top:3px; white-space:nowrap; }
+  .guide-block.now .guide-block-title{ color: var(--amber); }
+
+  .guide-now-line{
+    position:absolute; top:0; bottom:0; width:2px; background: var(--live-red);
+    z-index:5; pointer-events:none; box-shadow: 0 0 6px var(--live-red);
+  }
+  .guide-now-line::before{
+    content:''; position:absolute; top:36px; left:-4px; width:10px; height:10px;
+    border-radius:50%; background: var(--live-red); box-shadow: 0 0 6px var(--live-red);
+  }
+
+  .guide-empty{ padding:40px 20px; text-align:center; color:var(--text-dim); font-family:'IBM Plex Mono', monospace; font-size:12px; }
 
   /* ---------- EPG BAR ---------- */
   .epg{
@@ -588,12 +632,15 @@ const AD_BREAK_FREQUENCY = 1;     // insert a break after every N videos (1 = af
   <div class="sched-modal">
     <div class="sched-head">
       <div>
-        <div class="sched-title" id="sched-title">Schedule</div>
-        <div class="sched-sub" id="sched-sub">Today's lineup</div>
+        <div class="sched-title"><span class="dot"></span>TV Guide</div>
+        <div class="sched-sub" id="sched-sub">Today's lineup — reshuffles tomorrow</div>
       </div>
       <button class="sched-close" id="sched-close">✕</button>
     </div>
-    <div class="sched-list" id="sched-list"></div>
+    <div class="sched-jump" id="sched-jump"></div>
+    <div class="guide-body" id="guide-body">
+      <div id="guide-content"></div>
+    </div>
   </div>
 </div>
 
@@ -943,12 +990,12 @@ function fmtDurationShort(s){
   return s + 's';
 }
 
-/* Flattens a schedule into display rows with real clock start times,
-   grouping consecutive ad clips from the same break into a single row
-   so the list stays readable. Item 0 is treated as starting at
-   00:00:00 (which matches getNowPlaying's `secs % total` logic), and
-   the list covers one full loop of the schedule (or 24h, whichever is
-   shorter). */
+/* Flattens a schedule into a list of {start, dur, title, type, isNow}
+   entries (times in raw seconds-of-day). Item 0 is treated as starting
+   at 00:00:00 (matching getNowPlaying's `secs % total` logic), and the
+   list covers one full loop of the schedule (or 24h, whichever is
+   shorter). Consecutive ad clips from the same break are grouped into
+   a single "Commercial Break" entry so the guide stays readable. */
 function buildScheduleView(schedule){
   const rows = [];
   if (!schedule || schedule.items.length === 0) return rows;
@@ -969,11 +1016,11 @@ function buildScheduleView(schedule){
         i++;
       }
       const isNow = nowElapsed >= startAcc && nowElapsed < startAcc + breakDur;
-      rows.push({ time: fmtClock(startAcc % 86400), title: 'Commercial Break', dur: fmtDurationShort(breakDur), type: 'ad', isNow });
+      rows.push({ start: startAcc, dur: breakDur, title: 'Commercial Break', type: 'ad', isNow });
     } else {
       const d = schedule.durations[i];
       const isNow = nowElapsed >= startAcc && nowElapsed < startAcc + d;
-      rows.push({ time: fmtClock(startAcc % 86400), title: item.video.title, dur: fmtDurationShort(d), type: 'video', isNow });
+      rows.push({ start: startAcc, dur: d, title: item.video.title, type: 'video', isNow });
       acc += d;
       i++;
     }
@@ -1015,31 +1062,104 @@ const adPlayerEl = document.getElementById('ad-player');
 const schedBtn = document.getElementById('schedule-btn');
 const schedOverlay = document.getElementById('sched-overlay');
 const schedClose = document.getElementById('sched-close');
-const schedTitle = document.getElementById('sched-title');
 const schedSub = document.getElementById('sched-sub');
-const schedList = document.getElementById('sched-list');
+const schedJump = document.getElementById('sched-jump');
+const guideBody = document.getElementById('guide-body');
+const guideContent = document.getElementById('guide-content');
+
+const GUIDE_PX_PER_MIN = 2.2;
+const GUIDE_LABEL_WIDTH = 150;
+const GUIDE_TRACK_WIDTH = 24 * 60 * GUIDE_PX_PER_MIN;
+function secToPx(sec){ return (sec / 60) * GUIDE_PX_PER_MIN; }
+function fmtHourLabel(h){
+  const period = h >= 12 ? 'PM' : 'AM';
+  let h12 = h % 12; if (h12 === 0) h12 = 12;
+  return h12 + ' ' + period;
+}
+
+/* Returns the schedule to display for a channel in the guide: the live
+   one (with real probed durations) if it's the channel currently tuned
+   in, otherwise a schedule built from whatever durations are already
+   cached locally (falling back to a ~3 min estimate per video — same
+   default used elsewhere before a video's real length is known). */
+function getOrBuildScheduleForGuide(ch){
+  if (currentSchedule && currentChannelIndex !== null && CHANNELS[currentChannelIndex].id === ch.id){
+    return currentSchedule;
+  }
+  const durationsById = {};
+  ch.videos.forEach(v => { durationsById[v.id] = getCachedDuration(v.id) || 180; });
+  return buildSchedule(ch, durationsById, adClips);
+}
+
+function renderGuide(){
+  const now = new Date();
+  const nowSecs = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+  const nowLeft = secToPx(nowSecs);
+
+  let ticksHtml = '';
+  for (let h = 0; h < 24; h++){
+    ticksHtml += `<div class="guide-tick" style="left:${secToPx(h * 3600)}px;">${fmtHourLabel(h)}</div>`;
+  }
+
+  let rowsHtml = '';
+  CHANNELS.forEach((ch, idx) => {
+    const activeCls = idx === currentChannelIndex ? 'active' : '';
+    const labelHtml = `
+      <div class="guide-row-label ${activeCls}" data-ch="${idx}">
+        <div class="guide-ch-dot" style="background:${ch.color}"></div>
+        <div class="guide-ch-meta">
+          <div class="name">${escapeHtml(ch.name)}</div>
+          <div class="num">CH ${escapeHtml(ch.number)}</div>
+        </div>
+      </div>`;
+    if (!ch.videos || ch.videos.length === 0){
+      rowsHtml += `
+        <div class="guide-row">
+          ${labelHtml}
+          <div class="guide-track" style="width:${GUIDE_TRACK_WIDTH}px;">
+            <div class="guide-empty" style="padding:0 12px; text-align:left; display:flex; align-items:center; height:100%;">No videos yet</div>
+          </div>
+        </div>`;
+      return;
+    }
+    const rows = buildScheduleView(getOrBuildScheduleForGuide(ch));
+    const blocksHtml = rows.map(r => {
+      const left = secToPx(r.start);
+      const width = Math.max(30, secToPx(r.dur) - 2);
+      const cls = (r.type === 'ad' ? 'ad ' : '') + (r.isNow ? 'now' : '');
+      return `
+        <div class="guide-block ${cls}" style="left:${left}px; width:${width}px;" data-ch="${idx}" title="${escapeHtml(r.title)}">
+          <div class="guide-block-title">${escapeHtml(r.title)}</div>
+          <div class="guide-block-time">${fmtClock(r.start)} · ${fmtDurationShort(r.dur)}</div>
+        </div>`;
+    }).join('');
+    rowsHtml += `
+      <div class="guide-row">
+        ${labelHtml}
+        <div class="guide-track" style="width:${GUIDE_TRACK_WIDTH}px;">${blocksHtml}</div>
+      </div>`;
+  });
+
+  guideContent.innerHTML = `
+    <div class="guide-inner" style="position:relative; width:${GUIDE_LABEL_WIDTH + GUIDE_TRACK_WIDTH}px;">
+      <div class="guide-head-row">
+        <div class="guide-corner"></div>
+        <div class="guide-timeline" style="width:${GUIDE_TRACK_WIDTH}px;">${ticksHtml}</div>
+      </div>
+      ${rowsHtml}
+      <div class="guide-now-line" style="left:${GUIDE_LABEL_WIDTH + nowLeft}px;"></div>
+    </div>
+  `;
+  return nowLeft;
+}
 
 function openSchedule(){
-  if (currentChannelIndex === null || !currentSchedule){
-    return;
-  }
-  const ch = CHANNELS[currentChannelIndex];
-  schedTitle.textContent = ch.name + ' — Schedule';
-  schedSub.textContent = "Today's lineup (repeats after this)";
-  const rows = buildScheduleView(currentSchedule);
-  schedList.innerHTML = rows.map(r => `
-    <div class="sched-row ${r.type === 'ad' ? 'ad' : ''} ${r.isNow ? 'now' : ''}">
-      <div class="sched-time">${r.time}</div>
-      <div class="sched-info">
-        <div class="sched-item-title">${escapeHtml(r.title)}</div>
-        <div class="sched-item-dur">${r.dur}</div>
-      </div>
-      ${r.isNow ? '<div class="sched-now-badge">NOW</div>' : ''}
-    </div>
-  `).join('');
+  schedSub.textContent = "Today's lineup — reshuffles tomorrow";
+  const nowLeft = renderGuide();
   schedOverlay.classList.add('show');
-  const nowRow = schedList.querySelector('.sched-row.now');
-  if (nowRow) nowRow.scrollIntoView({ block: 'center' });
+  requestAnimationFrame(() => {
+    guideBody.scrollLeft = Math.max(0, nowLeft - guideBody.clientWidth / 2 + GUIDE_LABEL_WIDTH);
+  });
 }
 function closeSchedule(){
   schedOverlay.classList.remove('show');
@@ -1049,6 +1169,33 @@ function escapeHtml(str){
   div.textContent = str == null ? '' : String(str);
   return div.innerHTML;
 }
+function jumpGuideTo(secOfDay){
+  guideBody.scrollTo({ left: Math.max(0, secToPx(secOfDay) - 40), behavior: 'smooth' });
+}
+[0, 6, 12, 18].forEach(h => {
+  const btn = document.createElement('button');
+  btn.className = 'sched-jump-btn';
+  btn.textContent = fmtHourLabel(h);
+  btn.addEventListener('click', () => jumpGuideTo(h * 3600));
+  schedJump.appendChild(btn);
+});
+const nowBtn = document.createElement('button');
+nowBtn.className = 'sched-jump-btn';
+nowBtn.textContent = '● Now';
+nowBtn.addEventListener('click', () => {
+  const d = new Date();
+  jumpGuideTo(d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds());
+});
+schedJump.appendChild(nowBtn);
+
+guideContent.addEventListener('click', (e) => {
+  const target = e.target.closest('[data-ch]');
+  if (!target) return;
+  const idx = parseInt(target.getAttribute('data-ch'), 10);
+  if (Number.isNaN(idx)) return;
+  closeSchedule();
+  if (idx !== currentChannelIndex) selectChannel(idx);
+});
 schedBtn.addEventListener('click', openSchedule);
 schedClose.addEventListener('click', closeSchedule);
 schedOverlay.addEventListener('click', (e) => { if (e.target === schedOverlay) closeSchedule(); });
